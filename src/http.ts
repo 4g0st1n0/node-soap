@@ -9,6 +9,8 @@ import * as _ from 'lodash';
 import * as req from 'request';
 import * as url from 'url';
 import * as uuid from 'uuid/v4';
+import * as mimelib from 'mimelib';
+
 import { IHeaders, IOptions } from './types';
 
 const debug = debugBuilder('node-soap');
@@ -23,6 +25,7 @@ export interface IAttachment {
   contentId: string;
   mimetype: string;
   body: NodeJS.ReadableStream;
+  //size: number;
 }
 
 export type Request = req.Request;
@@ -85,20 +88,20 @@ export class HttpClient {
       followAllRedirects: true,
     };
 
-    if (exoptions.forceMTOM || attachments.length > 0) {
+    if (exoptions.attachmentMethod = "MTOM" && (exoptions.forceMTOM || attachments.length > 0)) {
       const start = uuid();
       let action = null;
       if (headers['Content-Type'].indexOf('action') > -1) {
-           for (const ct of headers['Content-Type'].split('; ')) {
-               if (ct.indexOf('action') > -1) {
-                    action = ct;
-               }
-           }
+        for (const ct of headers['Content-Type'].split('; ')) {
+          if (ct.indexOf('action') > -1) {
+            action = ct;
+          }
+        }
       }
       headers['Content-Type'] =
         'multipart/related; type="application/xop+xml"; start="<' + start + '>"; start-info="text/xml"; boundary=' + uuid();
       if (action) {
-          headers['Content-Type'] = headers['Content-Type'] + '; ' + action;
+        headers['Content-Type'] = headers['Content-Type'] + '; ' + action;
       }
       const multipart: any[] = [{
         'Content-Type': 'application/xop+xml; charset=UTF-8; type="text/xml"',
@@ -116,7 +119,41 @@ export class HttpClient {
         });
       });
       options.multipart = multipart;
-    } else {
+    } else if (exoptions.attachmentMethod = "MIME" && attachments.length > 0) {
+      //const start = uuid();
+      let action = null;
+      if (headers['Content-Type'].indexOf('action') > -1) {
+        for (const ct of headers['Content-Type'].split('; ')) {
+          if (ct.indexOf('action') > -1) {
+            action = ct;
+          }
+        }
+      }
+      headers['Content-Type'] =
+        'multipart/related; type=text/xml; boundary=' + uuid();
+      if (action) {
+        headers['Content-Type'] = headers['Content-Type'] + '; ' + action;
+      }
+      const multipart: any[] = [{
+        'Content-Type': 'text/xml; charset=UTF-8',
+        'body': data,
+      }];      
+
+      attachments.forEach((attachment) => {
+        //var size = Buffer.byteLength(attachment.body);
+        var bodyB64 = mimelib.encodeBase64(attachment.body)
+        multipart.push({
+          'Content-Transfer-Encoding': 'base64',
+          'Content-ID': '<' + attachment.contentId + '>',
+          'Content-Type': attachment.mimetype,
+          'Content-Disposition': attachment.name + ';',
+          'body': bodyB64,
+          //'size': size,
+        });
+      });
+      options.multipart = multipart;
+    }
+    else {
       options.body = data;
     }
 
@@ -175,7 +212,7 @@ export class HttpClient {
           return callback(err);
         }
         // if result is stream
-        if ( typeof res.body !== 'string') {
+        if (typeof res.body !== 'string') {
           res.body = res.body.toString();
         }
         res.body = this.handleResponse(req, res, res.body);
