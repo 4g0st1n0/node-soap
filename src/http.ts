@@ -88,7 +88,7 @@ export class HttpClient {
       followAllRedirects: true,
     };
 
-    if (exoptions.attachmentMethod = "MTOM" && (exoptions.forceMTOM || attachments.length > 0)) {
+    if (exoptions.attachmentMethod == "MTOM" && (exoptions.forceMTOM || attachments.length > 0)) {
       const start = uuid();
       let action = null;
       if (headers['Content-Type'].indexOf('action') > -1) {
@@ -119,7 +119,7 @@ export class HttpClient {
         });
       });
       options.multipart = multipart;
-    } else if (exoptions.attachmentMethod = "MIME" && attachments.length > 0) {
+    } else if (exoptions.attachmentMethod == "MIME" && attachments.length > 0) {
       //const start = uuid();
       let action = null;
       if (headers['Content-Type'].indexOf('action') > -1) {
