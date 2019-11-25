@@ -9,7 +9,7 @@ import * as _ from 'lodash';
 import * as req from 'request';
 import * as url from 'url';
 import * as uuid from 'uuid/v4';
-import * as mimelib from 'mimelib';
+import * as isstream from 'isstream';
 
 import { IHeaders, IOptions } from './types';
 
@@ -25,7 +25,6 @@ export interface IAttachment {
   contentId: string;
   mimetype: string;
   body: NodeJS.ReadableStream;
-  //size: number;
 }
 
 export type Request = req.Request;
@@ -120,7 +119,6 @@ export class HttpClient {
       });
       options.multipart = multipart;
     } else if (exoptions.attachmentMethod == "MIME" && attachments.length > 0) {
-      //const start = uuid();
       let action = null;
       if (headers['Content-Type'].indexOf('action') > -1) {
         for (const ct of headers['Content-Type'].split('; ')) {
@@ -137,18 +135,18 @@ export class HttpClient {
       const multipart: any[] = [{
         'Content-Type': 'text/xml; charset=UTF-8',
         'body': data,
-      }];      
+      }];
 
       attachments.forEach((attachment) => {
-        //var size = Buffer.byteLength(attachment.body);
-        var bodyB64 = mimelib.encodeBase64(attachment.body)
+        if (isstream(attachment.body)) {
+          throw new Error('Streams are not supported in MIME mode');
+        }
         multipart.push({
           'Content-Transfer-Encoding': 'base64',
           'Content-ID': '<' + attachment.contentId + '>',
           'Content-Type': attachment.mimetype,
           'Content-Disposition': attachment.name + ';',
-          'body': bodyB64,
-          //'size': size,
+          'body': attachment.body,
         });
       });
       options.multipart = multipart;
